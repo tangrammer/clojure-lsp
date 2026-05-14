@@ -53,6 +53,15 @@
         local-element (when keys-destructuring
                         (q/find-local-by-destructured-keyword db uri reference))
         text (cond
+               ;; ::alias/name or ::name form — preserve :: prefix and alias when present
+               (and local-element
+                    (string/starts-with? (:str local-element) "::"))
+               (if (string/starts-with? replacement-raw "::")
+                 (if alias
+                   (str "::" alias "/" replacement-name)
+                   (str "::" replacement-name))
+                 (str ":" replacement-ns "/" replacement-name))
+
                (and local-element
                     (string/includes? (:str local-element) "/")
                     (string/starts-with? (:str local-element) ":"))

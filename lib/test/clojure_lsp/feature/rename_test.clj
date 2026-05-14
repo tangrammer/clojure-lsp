@@ -75,7 +75,17 @@
          c-binding-start c-binding-stop
          c-usage-start c-usage-stop] (h/load-code-and-locs
                                        "|:e/f| (let [{:e/keys [|f|]} {}] |f|)"
-                                       (h/file-uri "file:///c.cljc"))]
+                                       (h/file-uri "file:///c.cljc"))
+        [d-start d-stop
+         d-binding-start d-binding-stop
+         d-usage-start d-usage-stop] (h/load-code-and-locs
+                                       "|::foo| (let [{:keys [|::foo|]} {}] |foo|)"
+                                       (h/file-uri "file:///d.cljc"))
+        [e-start e-stop
+         e-binding-start e-binding-stop
+         e-usage-start e-usage-stop] (h/load-code-and-locs
+                                       "(ns consumer.ns (:require [my-foo.app :as foo])) |::foo/bar| (let [{:keys [|::foo/bar|]} {}] |bar|)"
+                                       (h/file-uri "file:///e.cljc"))]
     (testing "should rename local in destructure with ':' and keywords if namespaced"
       (let [[row col] a-start
             changes (:changes (f.rename/rename-from-position (h/file-uri "file:///a.cljc") ":a/c" row col (h/db)))]
@@ -99,6 +109,22 @@
                 [{:new-text ":e/g" :range (h/->range c-start c-stop)}
                  {:new-text "g" :range (h/->range c-binding-start c-binding-stop)}
                  {:new-text "g" :range (h/->range c-usage-start c-usage-stop)}]}
+               changes))))
+    (testing "should rename auto-resolved qualified keyword in :keys destructuring"
+      (let [[row col] d-start
+            changes (:changes (f.rename/rename-from-position (h/file-uri "file:///d.cljc") "::bar" row col (h/db)))]
+        (is (= {(h/file-uri "file:///d.cljc")
+                [{:new-text "::bar" :range (h/->range d-start d-stop)}
+                 {:new-text "::bar" :range (h/->range d-binding-start d-binding-stop)}
+                 {:new-text "bar" :range (h/->range d-usage-start d-usage-stop)}]}
+               changes))))
+    (testing "should rename aliased qualified keyword in :keys destructuring preserving alias"
+      (let [[row col] e-start
+            changes (:changes (f.rename/rename-from-position (h/file-uri "file:///e.cljc") "::foo/baz" row col (h/db)))]
+        (is (= {(h/file-uri "file:///e.cljc")
+                [{:new-text "::foo/baz" :range (h/->range e-start e-stop)}
+                 {:new-text "::foo/baz" :range (h/->range e-binding-start e-binding-stop)}
+                 {:new-text "baz" :range (h/->range e-usage-start e-usage-stop)}]}
                changes))))))
 
 (deftest rename-keywords-corner-cases
